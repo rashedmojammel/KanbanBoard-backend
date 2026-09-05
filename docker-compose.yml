@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: kanban
+    ports:
+      - '5432:5432'
+    volumes:
+      - kanban_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/kanban?schema=public
+      DIRECT_URL: postgresql://postgres:postgres@postgres:5432/kanban?schema=public
+      JWT_SECRET: change-this-to-a-long-random-secret
+      JWT_EXPIRES_IN: 1d
+      PORT: 3000
+    ports:
+      - '3000:3000'
+    command: sh -c "npx prisma migrate deploy && node dist/main.js"
+
+volumes:
+  kanban_postgres_data:

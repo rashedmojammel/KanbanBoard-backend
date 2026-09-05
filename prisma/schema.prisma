@@ -1,0 +1,91 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum BoardRole {
+  OWNER
+  MEMBER
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  ownedBoards  Board[]       @relation("BoardOwner")
+  boardMembers BoardMember[]
+
+  @@index([email])
+  @@map("users")
+}
+
+model Board {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  ownerId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner   User          @relation("BoardOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members BoardMember[]
+  columns Column[]
+
+  @@index([ownerId])
+  @@map("boards")
+}
+
+model BoardMember {
+  id        String    @id @default(uuid())
+  boardId   String
+  userId    String
+  role      BoardRole @default(MEMBER)
+  createdAt DateTime  @default(now())
+
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([boardId, userId])
+  @@index([boardId])
+  @@index([userId])
+  @@map("board_members")
+}
+
+model Column {
+  id        String   @id @default(uuid())
+  name      String
+  position  Int
+  boardId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  board Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  tasks Task[]
+
+  @@index([boardId, position])
+  @@map("columns")
+}
+
+model Task {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  position    Int
+  columnId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  column Column @relation(fields: [columnId], references: [id], onDelete: Cascade)
+
+  @@index([columnId, position])
+  @@map("tasks")
+}
